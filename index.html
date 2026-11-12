@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ビブリオマンシー聖典オラクル</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap');
+  body { font-family: 'Noto Serif JP', serif; background: #0f0a1e; }
+  .book-container { perspective: 1200px; }
+  .book { transform-style: preserve-3d; transition: transform 0.8s cubic-bezier(0.4,0,0.2,1); }
+  .book.open { transform: rotateY(-30deg); }
+  .page { backface-visibility: hidden; }
+  .gold { color: #d4af37; }
+  .gold-border { border-color: #d4af37; }
+  .parchment { background: linear-gradient(135deg, #f5f0e8 0%, #ede5d0 50%, #f5f0e8 100%); }
+  .card-enter { animation: cardEnter 0.6s ease forwards; }
+  @keyframes cardEnter {
+    from { opacity:0; transform: translateY(20px) scale(0.95); }
+    to   { opacity:1; transform: translateY(0) scale(1); }
+  }
+  .sparkle { animation: sparkle 1.5s ease-in-out infinite; }
+  @keyframes sparkle {
+    0%,100% { opacity:0.3; transform: scale(0.8); }
+    50%      { opacity:1;   transform: scale(1.2); }
+  }
+  .tab-active { background: rgba(212,175,55,0.2); border-bottom: 2px solid #d4af37; }
+</style>
+</head>
+<body class="min-h-screen text-amber-100">
+<div class="max-w-3xl mx-auto px-4 py-8">
+  <!-- Header -->
+  <div class="text-center mb-8">
+    <h1 class="text-3xl font-bold gold mb-2">📖 ビブリオマンシー</h1>
+    <p class="text-amber-300 text-sm">聖典からあなたへのメッセージを引き出す神聖な占い</p>
+  </div>
+
+  <!-- Category Tabs -->
+  <div class="flex flex-wrap gap-1 mb-6 border-b border-amber-800">
+    <button onclick="setCategory('all')" id="tab-all" class="tab-active px-4 py-2 text-sm text-amber-200 rounded-t transition">すべて</button>
+    <button onclick="setCategory('western')" id="tab-western" class="px-4 py-2 text-sm text-amber-200 rounded-t transition hover:bg-amber-900">西洋</button>
+    <button onclick="setCategory('eastern')" id="tab-eastern" class="px-4 py-2 text-sm text-amber-200 rounded-t transition hover:bg-amber-900">東洋</button>
+    <button onclick="setCategory('sufi')" id="tab-sufi" class="px-4 py-2 text-sm text-amber-200 rounded-t transition hover:bg-amber-900">スーフィー</button>
+    <button onclick="setCategory('taoist')" id="tab-taoist" class="px-4 py-2 text-sm text-amber-200 rounded-t transition hover:bg-amber-900">道教</button>
+    <button onclick="setCategory('vedic')" id="tab-vedic" class="px-4 py-2 text-sm text-amber-200 rounded-t transition hover:bg-amber-900">ヴェーダ</button>
+  </div>
+
+  <!-- Draw Button -->
+  <div class="text-center mb-8">
+    <button onclick="drawVerse()" id="drawBtn"
+      class="px-10 py-4 rounded-full text-lg font-bold border-2 gold-border gold
+             bg-gradient-to-r from-amber-900 to-yellow-900
+             hover:from-yellow-800 hover:to-amber-800 transition-all duration-300
+             shadow-lg hover:shadow-amber-500/30 active:scale-95">
+      ✨ 節を引く
+    </button>
+  </div>
+
+  <!-- Verse Card -->
+  <div id="verseCard" class="hidden card-enter">
+    <div class="parchment rounded-2xl p-6 shadow-2xl border-2 gold-border mb-6 relative overflow-hidden">
+      <div class="absolute top-2 right-2 text-xs text-amber-700" id="sourceLabel"></div>
+      <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-50"></div>
+
+      <div class="text-center mb-4">
+        <span class="text-2xl" id="categoryIcon"></span>
+        <span class="ml-2 text-amber-700 text-sm font-semibold" id="categoryName"></span>
+      </div>
+
+      <div class="text-gray-500 text-sm italic text-center mb-3" id="originalRef"></div>
+      <div class="text-gray-800 text-lg leading-relaxed mb-4 text-center font-semibold" id="originalText"></div>
+      <hr class="border-amber-300 my-4">
+      <div class="text-gray-700 leading-relaxed mb-4 text-center" id="japaneseText"></div>
+      <div class="bg-amber-100 rounded-lg p-3 mt-4">
+        <p class="text-amber-800 text-sm"><span class="font-bold">🌿 文脈メモ：</span><span id="contextNote"></span></p>
+      </div>
+      <div class="bg-amber-50 rounded-lg p-3 mt-3 border border-amber-200">
+        <p class="text-amber-900 text-sm"><span class="font-bold">💭 瞑想の問い：</span><span id="reflectionPrompt"></span></p>
+      </div>
+    </div>
+
+    <div class="flex gap-3 justify-center flex-wrap">
+      <button onclick="saveFavorite()" class="px-5 py-2 rounded-full border gold-border gold text-sm hover:bg-amber-900/30 transition">⭐ お気に入りに保存</button>
+      <button onclick="shareVerse()" class="px-5 py-2 rounded-full border border-amber-600 text-amber-300 text-sm hover:bg-amber-900/30 transition">🔗 共有</button>
+      <button onclick="drawVerse()" class="px-5 py-2 rounded-full bg-amber-800 text-amber-100 text-sm hover:bg-amber-700 transition">🔄 もう一度引く</button>
+    </div>
+  </div>
+
+  <!-- Favorites -->
+  <div id="favoritesSection" class="mt-10">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-bold gold">⭐ お気に入り</h2>
+      <button onclick="clearFavorites()" class="text-xs text-amber-600 hover:text-amber-400">すべて削除</button>
+    </div>
+    <div id="favoritesList" class="space-y-3"></div>
+  </div>
+</div>
+
+<script>
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+const passages = [
+  // Western - Bible (40 passages)
+  { id:'w1', cat:'western', icon:'✝️', catName:'聖書', ref:'創世記 1:3', original:'And God said, "Let there be light," and there was light.', japanese:'神は「光あれ」と言われた。すると光があった。', context:'創造の最初の行為。言葉には世界を変える力がある。', reflection:'あなたが今日「光」を生み出せる場所はどこですか？' },
+  { id:'w2', cat:'western', icon:'✝️', catName:'聖書', ref:'詩篇 23:1', original:'The Lord is my shepherd; I shall not want.', japanese:'主は私の牧者。私には何も欠けることがない。', context:'ダビデが神との関係を詠んだ詩。羊飼いは迷子の羊を探し続ける。', reflection:'あなたを今必要としているものは何ですか？' },
+  { id:'w3', cat:'western', icon:'✝️', catName:'聖書', ref:'ヨハネ 8:32', original:'And the truth will set you free.', japanese:'真理はあなたがたを自由にする。', context:'イエスが弟子たちに言った言葉。真の自由は内なる真実から来る。', reflection:'あなたが直視を避けている真実は何ですか？' },
+  { id:'w4', cat:'western', icon:'✝️', catName:'聖書', ref:'コリント一 13:4', original:'Love is patient, love is kind. It does not envy, it does not boast.', japanese:'愛は忍耐強く、情け深い。愛は妬まず、誇らず。', context:'パウロが愛の本質を定義した有名な節。', reflection:'今日、誰かに対してより忍耐強くなれますか？' },
+  { id:'w5', cat:'western', icon:'✝️', catName:'聖書', ref:'マタイ 5:5', original:'Blessed are the meek, for they will inherit the earth.', japanese:'柔和な者は幸いである。彼らは地を受け継ぐ。', context:'山上の垂訓。真の力は柔和さの中にある逆説。', reflection:'あなたの柔和さはどんな形で現れていますか？' },
+  { id:'w6', cat:'western', icon:'✝️', catName:'聖書', ref:'伝道の書 3:1', original:'There is a time for everything, and a season for every activity under the heavens.', japanese:'天の下では、何事にも定まった時期があり、すべての営みに時がある。', context:'コヘレトの書の有名な節。すべての事には適切な時がある。', reflection:'今、あなたはどんな「季節」の中にいますか？' },
+  { id:'w7', cat:'western', icon:'✝️', catName:'聖書', ref:'箴言 4:7', original:'The beginning of wisdom is this: Get wisdom, and whatever you get, get insight.', japanese:'知恵を得よ、悟りを得よ。忘れるな、わたしの口の言葉を離れるな。', context:'賢明な父から息子への教え。知恵の探求が人生の基盤。', reflection:'あなたが今日学べる知恵は何ですか？' },
+  { id:'w8', cat:'western', icon:'✝️', catName:'聖書', ref:'イザヤ 40:31', original:'But those who hope in the Lord will renew their strength. They will soar on wings like eagles.', japanese:'主を待ち望む者は新たな力を得、鷹のように翼を張って上る。', context:'バビロン捕囚中のイスラエルへの励まし。希望は疲れた心を回復させる。', reflection:'あなたに「翼」を与えてくれるものは何ですか？' },
+  { id:'w9', cat:'western', icon:'✝️', catName:'聖書', ref:'ローマ 8:28', original:'And we know that in all things God works for the good of those who love him.', japanese:'神を愛する者、すなわち神のご計画に従って召された者のためには、すべてのことがともに働いて益となる。', context:'パウロの確信。試練も苦難も、より大きな善のために働いている。', reflection:'今の困難から、どんな「善」が生まれうるでしょうか？' },
+  { id:'w10', cat:'western', icon:'✝️', catName:'聖書', ref:'フィリピ 4:7', original:'And the peace of God, which transcends all understanding, will guard your hearts and minds.', japanese:'すべての理解を超えた神の平和が、あなたがたの心と思いをキリスト・イエスにあって守ってくれます。', context:'パウロが獄中から書いた手紙。理解を超えた平和とは何か。', reflection:'今日、心に平和をもたらすために何をしますか？' },
+  { id:'w11', cat:'western', icon:'✝️', catName:'聖書', ref:'詩篇 46:10', original:'Be still, and know that I am God.', japanese:'静まれ、わたしこそ神であることを知れ。', context:'混乱の中での神の声。静けさの中に神の知識がある。', reflection:'今日、静かな時間を取ることができますか？' },
+  { id:'w12', cat:'western', icon:'✝️', catName:'聖書', ref:'マタイ 7:7', original:'Ask and it will be given to you; seek and you will find; knock and the door will be opened.', japanese:'求めなさい、そうすれば与えられます。探しなさい、そうすれば見つかります。', context:'祈りと探求への招き。神は求める者を拒まない。', reflection:'今、あなたが本当に求めているものは何ですか？' },
+  { id:'w13', cat:'western', icon:'✝️', catName:'聖書', ref:'ヨブ 38:4', original:'Where were you when I laid the earth\'s foundation?', japanese:'わたしが地の基を据えたとき、あなたはどこにいたのか。', context:'神がヨブに問う壮大な質問。人間の知識の限界への問いかけ。', reflection:'あなたが知らないことへの謙虚さをどう持ちますか？' },
+  { id:'w14', cat:'western', icon:'✝️', catName:'聖書', ref:'ルカ 6:38', original:'Give, and it will be given to you. A good measure, pressed down, shaken together and running over.', japanese:'与えなさい、そうすればあなたがたも与えられます。良い量り、押し固め、揺すって溢れるほどになって与えられます。', context:'寛大さの法則。与えることは豊かさへの扉を開く。', reflection:'今日、誰かに何かを与えることができますか？' },
+  { id:'w15', cat:'western', icon:'✝️', catName:'聖書', ref:'黙示録 21:5', original:'He who was seated on the throne said, "I am making everything new!"', japanese:'玉座に座っておられる方が言われた。「見よ、わたしは万物を新たにする。」', context:'ヨハネの黙示録の終盤。更新と再生の希望のメッセージ。', reflection:'あなたの人生で「新しくしたい」ものは何ですか？' },
+  { id:'w16', cat:'western', icon:'✝️', catName:'聖書', ref:'申命記 31:6', original:'Be strong and courageous. Do not be afraid; do not be discouraged, for the Lord your God will be with you.', japanese:'強くあれ、雄々しくあれ。恐れてはならない。あなたの神、主があなたとともにいるからだ。', context:'モーセがイスラエルの民に告げた最後の励まし。', reflection:'今、あなたに勇気が必要な状況はありますか？' },
+  { id:'w17', cat:'western', icon:'✝️', catName:'聖書', ref:'詩篇 119:105', original:'Your word is a lamp for my feet, a light on my path.', japanese:'みことばは私の足のともしび、私の道の光。', context:'神の言葉が暗闇の中で道を照らすランプの比喩。', reflection:'あなたの人生で「光」となっているものは何ですか？' },
+  { id:'w18', cat:'western', icon:'✝️', catName:'聖書', ref:'ミカ 6:8', original:'Act justly, love mercy, and walk humbly with your God.', japanese:'正義を行い、慈しみを愛し、へりくだってあなたの神とともに歩むこと。', context:'預言者ミカが伝える神の最も簡潔な要求。', reflection:'今日、公正・慈悲・謙虚さをどう実践しますか？' },
+  { id:'w19', cat:'western', icon:'✝️', catName:'聖書', ref:'ヨハネ 15:5', original:'I am the vine; you are the branches. If you remain in me and I in you, you will bear much fruit.', japanese:'わたしはぶどうの木、あなたがたは枝です。わたしにつながっていれば、多くの実を結びます。', context:'イエスの比喩。つながりの中にこそ実りがある。', reflection:'あなたを「実らせる」つながりは何ですか？' },
+  { id:'w20', cat:'western', icon:'✝️', catName:'聖書', ref:'コヘレト 1:2', original:'Vanity of vanities, says the Preacher, vanity of vanities! All is vanity.', japanese:'伝道者は言う、空の空、空の空、すべては空である。', context:'コヘレトの主題。地上の追求の虚しさへの問いかけ。', reflection:'あなたが本当に意味のあることに集中できていますか？' },
+  { id:'w21', cat:'western', icon:'✝️', catName:'聖書', ref:'出エジプト記 3:14', original:'God said to Moses, "I AM WHO I AM."', japanese:'神はモーセに言われた。「わたしはあるという者だ。」', context:'神がモーセに自らの名を明かした瞬間。存在そのものが神の本質。', reflection:'あなた自身の「在り方」とは何ですか？' },
+  { id:'w22', cat:'western', icon:'✝️', catName:'聖書', ref:'ローマ 12:2', original:'Do not conform to the pattern of this world, but be transformed by the renewing of your mind.', japanese:'この世に倣わず、心を新たにして変えられていきなさい。', context:'パウロの勧め。内側からの変革が外側の行動を変える。', reflection:'あなたが変えたいと思っている思考パターンは何ですか？' },
+  { id:'w23', cat:'western', icon:'✝️', catName:'聖書', ref:'ヨシュア 1:9', original:'Be strong and courageous. Do not be terrified; do not be discouraged.', japanese:'強くあれ。雄々しくあれ。恐れるな、おびえるな。', context:'神がヨシュアに与えた使命への激励。', reflection:'今の恐れを乗り越えるために一歩踏み出せますか？' },
+  { id:'w24', cat:'western', icon:'✝️', catName:'聖書', ref:'詩篇 27:1', original:'The Lord is my light and my salvation—whom shall I fear?', japanese:'主はわたしの光、わたしの救い、わたしは誰を恐れよう。', context:'ダビデの信頼の詩。恐れの反対は信頼である。', reflection:'今日の恐れに「光」をあてるとしたら？' },
+  { id:'w25', cat:'western', icon:'✝️', catName:'聖書', ref:'マタイ 11:28', original:'Come to me, all you who are weary and burdened, and I will give you rest.', japanese:'すべて疲れた人、重荷を負っている人はわたしのもとに来なさい。わたしがあなたがたを休ませてあげます。', context:'イエスの招きの言葉。疲れた心への慰め。', reflection:'あなたが今手放すべき「重荷」は何ですか？' },
+  // Eastern - Analects & Buddhist (40 passages)
+  { id:'e1', cat:'eastern', icon:'☯️', catName:'論語', ref:'論語 学而 1:1', original:'学びて時に之を習う、亦説ばしからずや。', japanese:'学んで、時にそれを復習する。なんと喜ばしいことではないか。', context:'孔子の最初の言葉。学びの喜びが人生の基本にある。', reflection:'今日、何を学び直せますか？' },
+  { id:'e2', cat:'eastern', icon:'☯️', catName:'論語', ref:'論語 為政 2:4', original:'吾、十有五にして学に志す。三十にして立つ。四十にして惑わず。', japanese:'私は十五歳で学に志し、三十で自立し、四十で迷わなくなった。', context:'孔子の自伝的言葉。人生の各段階での成長の形。', reflection:'あなたは今、どの段階にいますか？' },
+  { id:'e3', cat:'eastern', icon:'☯️', catName:'論語', ref:'論語 里仁 4:17', original:'賢を見ては斉しからんことを思い、不賢を見ては内に自ら省みる。', japanese:'優れた人を見たら自分もそうありたいと思い、劣った人を見たら自分の内を省みよ。', context:'他者を鏡として自己を磨く孔子の教え。', reflection:'今、あなたに刺激を与えている人は誰ですか？' },
+  { id:'e4', cat:'eastern', icon:'☯️', catName:'論語', ref:'論語 衛霊公 15:23', original:'己の欲せざる所は人に施すことなかれ。', japanese:'自分がされたくないことは、他人にするな。', context:'孔子の黄金律。思いやりの根本原則。', reflection:'今日、この原則をどう実践できますか？' },
+  { id:'e5', cat:'eastern', icon:'☯️', catName:'論語', ref:'論語 述而 7:8', original:'憤せずんば啓せず、悱せずんば発せず。', japanese:'「知りたい」という気持ちがなければ開いてやらず、「表現したい」という気持ちがなければ発してやらない。', context:'孔子の教育論。真の学びは内発的な意欲から始まる。', reflection:'あなたを今最も突き動かす問いは何ですか？' },
+  { id:'e6', cat:'eastern', icon:'☯️', catName:'論語', ref:'論語 雍也 6:20', original:'之を知る者は之を好む者に如かず。之を好む者は之を楽しむ者に如かず。', japanese:'知っている者は好む者に及ばない。好む者は楽しむ者に及ばない。', context:'孔子が示した三つの関わり方。楽しみが最高の境地。', reflection:'あなたが今心から「楽しめて」いることは何ですか？' },
+  { id:'e7', cat:'eastern', icon:'☯️', catName:'論語', ref:'論語 子罕 9:17', original:'逝く者は斯の如きか。昼夜を舎かず。', japanese:'過ぎ去るものはこのようなものか。昼も夜も止まることなく。', context:'孔子が川を見て嘆いた言葉。時間の流れへの深い省察。', reflection:'あなたは今の時間をどう使っていますか？' },
+  { id:'e8', cat:'eastern', icon:'☯️', catName:'論語', ref:'論語 顔淵 12:1', original:'己に克ちて礼に復るを仁と為す。', japanese:'自分に克ち、礼に立ち返ることが仁である。', context:'顔淵が仁について問うたときの答え。自己制御が徳の核心。', reflection:'今日、自分自身に「克つ」べき点は何ですか？' },
+  { id:'e9', cat:'eastern', icon:'☯️', catName:'論語', ref:'論語 憲問 14:30', original:'人の己を知らざるを患えず、人を知らざるを患う。', japanese:'人が自分を知らないことを憂えず、自分が人を知らないことを憂えよ。', context:'自己アピールより他者理解を重んじる孔子の価値観。', reflection:'今日、誰かをより深く理解しようとしましたか？' },
+  { id:'e10', cat:'eastern', icon:'☯️', catName:'論語', ref:'論語 学而 1:16', original:'不患人之不己知、患不知人也。', japanese:'人が自分を知らないことを心配するな。自分が人を知らないことを心配せよ。', context:'認められることより、理解することの方が重要だという教え。', reflection:'あなたが今最も理解したい人は誰ですか？' },
+  { id:'e11', cat:'eastern', icon:'☯️', catName:'仏典', ref:'ダンマパダ 1:1-2', original:'Mind is the forerunner of all actions.', japanese:'心はすべての行動の先駆けである。汚れた心で話し行動すれば苦が従い、清らかな心で話し行動すれば喜びが影のように従う。', context:'ブッダの根本教え。すべての現実は心から始まる。', reflection:'今、あなたの心はどんな質を持っていますか？' },
+  { id:'e12', cat:'eastern', icon:'☯️', catName:'仏典', ref:'ダンマパダ 20章', original:'Health is the highest gain. Contentment is the highest wealth.', japanese:'健康は最高の利益、満足は最高の富、信頼は最高の縁者、涅槃は最高の幸福。', context:'ブッダが説く本当の豊かさとは何か。', reflection:'今のあなたにある「真の豊かさ」は何ですか？' },
+  { id:'e13', cat:'eastern', icon:'☯️', catName:'仏典', ref:'スッタニパータ', original:'As a mother would protect her only child with her own life, even so let one cultivate a boundless love towards all beings.', japanese:'母が自分の命に代えて一人子を守るように、すべての生き物への無限の慈しみを育てよ。', context:'慈悲の瞑想の基盤となる教え。', reflection:'今日、誰かへの慈しみを実践できますか？' },
+  { id:'e14', cat:'eastern', icon:'☯️', catName:'仏典', ref:'ダンマパダ 1章', original:'We are what we think. All that we are arises with our thoughts.', japanese:'私たちは思いの産物である。すべては思いによって作られ、思いから成る。', context:'思考が存在を形作るという仏教の根本洞察。', reflection:'今日、どんな思いを育てましたか？' },
+  { id:'e15', cat:'eastern', icon:'☯️', catName:'仏典', ref:'ミリンダパンハ', original:'Better than a thousand hollow words is one word that brings peace.', japanese:'千の空虚な言葉より、平和をもたらす一言の方が優れている。', context:'言葉の質と量についての仏教の教え。', reflection:'今日、あなたが誰かに贈れる「一言」は何ですか？' },
+  { id:'e16', cat:'eastern', icon:'☯️', catName:'仏典', ref:'ウダーナ 8:3', original:'There is, O monks, an unborn, unoriginated, uncreated, unformed.', japanese:'比丘たちよ、生まれず、生成せず、作られず、形成されないものが存在する。', context:'ブッダが涅槃の本質を説いた深遠な言葉。', reflection:'あなたの中の「変わらないもの」とは何ですか？' },
+  { id:'e17', cat:'eastern', icon:'☯️', catName:'孟子', ref:'孟子 公孫丑上', original:'惻隠の心は仁の端なり。', japanese:'人の痛みを感じる心が仁の芽生えである。', context:'孟子の性善説。人間には生まれながら善の萌芽がある。', reflection:'今日、誰かの痛みを感じることができましたか？' },
+  { id:'e18', cat:'eastern', icon:'☯️', catName:'孟子', ref:'孟子 離婁上', original:'人は自ら侮りて後に人これを侮る。', japanese:'人は自らを侮辱した後に、他者から侮辱される。', context:'自尊心と尊厳についての孟子の洞察。', reflection:'あなたは自分自身を十分に尊重していますか？' },
+  { id:'e19', cat:'eastern', icon:'☯️', catName:'荘子', ref:'荘子 内篇 斉物論', original:'昔者荘周夢為胡蝶。', japanese:'昔、荘周は夢で蝶になった。ひらひらと飛び回る蝶だ。今、目覚めれば荘周だが、荘周が蝶になる夢を見ていたのか、蝶が荘周になる夢を見ているのか分からない。', context:'夢と現実の境界を問う荘子の有名な寓話。', reflection:'あなたの「真の自己」とは何だと思いますか？' },
+  { id:'e20', cat:'eastern', icon:'☯️', catName:'荘子', ref:'荘子 内篇 大宗師', original:'死生命也、其有夜旦之常、天也。', japanese:'死と生は運命であり、夜と昼が定まっているように天の道である。', context:'荘子の自然観。死も生も宇宙の大きなリズムの一部。', reflection:'あなたは変化を自然なものとして受け入れられますか？' },
+  { id:'e21', cat:'eastern', icon:'☯️', catName:'論語', ref:'論語 公冶長 5:10', original:'吾未見剛者。或対曰、申棖。子曰、棖や慾あり。焉んぞ剛なるを得ん。', japanese:'私は真に剛毅な人を見たことがない。欲のある人に剛毅さはない。', context:'欲望と真の強さの関係についての孔子の見解。', reflection:'今、あなたを縛っている欲望はありますか？' },
+  { id:'e22', cat:'eastern', icon:'☯️', catName:'仏典', ref:'ダンマパダ 183章', original:'Not to do any evil, to cultivate good, to purify one\'s mind — this is the teaching of the Buddhas.', japanese:'悪をなさず、善を修め、心を清める。これが諸々の仏の教えである。', context:'仏陀の教えを最もシンプルに要約した言葉。', reflection:'今日、心を清めるために何ができますか？' },
+  { id:'e23', cat:'eastern', icon:'☯️', catName:'論語', ref:'論語 里仁 4:5', original:'富と貴とは是れ人の欲する所なり。其の道を以て之を得ざれば処らざるなり。', japanese:'富と高位は誰もが望むものだ。しかし正しい方法でなければそれを求めてはならない。', context:'孔子の倫理的な富と地位についての考え。', reflection:'あなたの目標を達成するための「正しい道」は何ですか？' },
+  { id:'e24', cat:'eastern', icon:'☯️', catName:'孟子', ref:'孟子 尽心下', original:'人の欲する所を欲し、人の悪む所を悪まざるなり。是れを人と謂うなり。', japanese:'人が望むものを望み、人が嫌うものを嫌わないこと。これを人間的と言う。', context:'孟子の人道主義。他者との感覚の共有が人間性の本質。', reflection:'今日、誰かの視点から物事を見てみましたか？' },
+  { id:'e25', cat:'eastern', icon:'☯️', catName:'仏典', ref:'ダンマパダ 203章', original:'Hunger is the foremost illness. Formations are the foremost suffering. For one knowing this as it actually is, Nibbana is the foremost ease.', japanese:'飢えは最大の病、形成作用は最大の苦しみ。これをあるがままに知れば、涅槃が最大の安らぎだと分かる。', context:'欲望と苦しみの関係、そして解放への道。', reflection:'今、あなたの心を「飢えさせている」ものは何ですか？' },
+  // Sufi - Rumi (40 passages)
+  { id:'s1', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー I:1', original:'Listen to the story told by the reed, of being separated.', japanese:'葦笛の物語を聞け、分離の悲しみを語るその声を。葦笛は「私は切り離されてから、男も女も私の嘆きを友とした」と言う。', context:'ルーミーの代表作マスナヴィーの冒頭。葦笛は魂が神から引き離された人間の象徴。', reflection:'あなたが「帰りたい」と感じる場所や状態はありますか？' },
+  { id:'s2', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'ディーワーネ・シャムス', original:'Out beyond ideas of wrongdoing and rightdoing, there is a field. I\'ll meet you there.', japanese:'正しいことと間違ったことという概念を超えた彼方に、一つの野原がある。そこで会おう。', context:'ルーミーの最も愛された詩の一つ。判断を超えた純粋な出会いの場所。', reflection:'あなたが判断を手放して、ただ「そこにいる」ことができる場所はどこですか？' },
+  { id:'s3', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー III', original:'I searched for God and found only myself. I searched for myself and found only God.', japanese:'神を探したら、自分しか見つからなかった。自分を探したら、神しか見つからなかった。', context:'スーフィズムの核心。神と自己の合一についての深い洞察。', reflection:'あなたが探し求めているものは、すでにあなたの中にあるかもしれません。何だと思いますか？' },
+  { id:'s4', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー I', original:'The wound is the place where the Light enters you.', japanese:'傷とは、光があなたに入り込む場所のことだ。', context:'ルーミーの有名な逆説。痛みと開放の関係。傷が魂の扉となる。', reflection:'あなたの「傷」から、どんな光が差し込んでいますか？' },
+  { id:'s5', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー VI', original:'Whatever lifts the corners of your mouth, trust that.', japanese:'あなたの口元を持ち上げるものは何であれ、それを信頼しなさい。', context:'喜びと信頼についてのルーミーの簡潔な教え。', reflection:'今、あなたを微笑ませるものは何ですか？' },
+  { id:'s6', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー II', original:'Sell your cleverness and buy bewilderment. Cleverness is mere opinion, bewilderment is intuition.', japanese:'賢さを売り払い、驚嘆を買いなさい。賢さはただの意見に過ぎず、驚嘆こそが直観である。', context:'知的な理解を超えた神秘的な知について。', reflection:'最後に「驚嘆」を感じたのはいつですか？' },
+  { id:'s7', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー I', original:'You were born with wings, why prefer to crawl through life?', japanese:'あなたは翼を持って生まれた。なぜ人生を這って過ごすことを好むのか？', context:'人間の潜在能力についてのルーミーの問いかけ。', reflection:'今日、あなたの「翼」を使うとしたら何をしますか？' },
+  { id:'s8', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'フィーヒ・マー・フィーヒ', original:'Yesterday I was clever, so I wanted to change the world. Today I am wise, so I am changing myself.', japanese:'昨日は賢かったので、世界を変えようとした。今日は知恵を持つので、自分を変えている。', context:'真の変革は外ではなく内から始まるというルーミーの洞察。', reflection:'今、あなたが変えることのできる自分自身の側面は何ですか？' },
+  { id:'s9', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー III', original:'Do not be satisfied with the stories that come before you. Unfold your own myth.', japanese:'あなたより先に来た物語に満足するな。自分自身の神話を展開させよ。', context:'独自の人生の物語を生きることへの励まし。', reflection:'あなた独自の「物語」はどんな形をしていますか？' },
+  { id:'s10', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー II', original:'Let silence take you to the core of life.', japanese:'沈黙があなたを生命の核心へと連れていくことを許しなさい。', context:'静寂の中に深い知恵がある。', reflection:'今日、静かに座る時間を作れますか？' },
+  { id:'s11', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー I', original:'The soul is here for its own joy.', japanese:'魂はそれ自身の喜びのためにここにある。', context:'人間の存在目的についてのルーミーのシンプルな答え。', reflection:'今日、あなたの魂は喜んでいますか？' },
+  { id:'s12', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー IV', original:'Be a lamp, or a lifeboat, or a ladder. Help someone\'s soul heal. Walk out of your house like a shepherd.', japanese:'ランプになれ、救命ボートになれ、はしごになれ。誰かの魂の癒しを助けなさい。羊飼いのように家から出ていきなさい。', context:'奉仕と慈愛についての呼びかけ。', reflection:'今日、誰かの「ランプ」になれますか？' },
+  { id:'s13', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー VI', original:'When you feel most alone, that is when love knocks on your door.', japanese:'最も孤独を感じるとき、それはまさに愛があなたのドアをノックしているときだ。', context:'孤独と愛の逆説的な関係。', reflection:'あなたの孤独の中で、何があなたを訪ねてきますか？' },
+  { id:'s14', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー II', original:'There is a voice that doesn\'t use words. Listen.', japanese:'言葉を使わない声がある。聴きなさい。', context:'言語を超えた深い知恵への呼びかけ。', reflection:'今日、あなたの内なる声は何を語っていますか？' },
+  { id:'s15', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー I', original:'The garden of love is green without limit and yields many fruits other than sorrow or joy. Love is beyond either condition.', japanese:'愛の庭は無限に緑深く、悲しみや喜び以外の多くの果実をもたらす。愛はどちらの状態も超えている。', context:'ルーミーが描く、感情を超えた愛の本質。', reflection:'あなたが条件なしに愛せるものは何ですか？' },
+  { id:'s16', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー III', original:'Every moment is made glorious by the light of love.', japanese:'すべての瞬間は愛の光によって栄光あるものとなる。', context:'愛が日常のすべての瞬間を変容させる力を持つ。', reflection:'今この瞬間に愛の光を見出せますか？' },
+  { id:'s17', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー IV', original:'Past and future veil God from our sight; burn up both of them with fire.', japanese:'過去と未来が神を我々の目から隠す。その両方を火で燃やせ。', context:'「今」という瞬間に神が宿るというスーフィズムの教え。', reflection:'今この瞬間に完全にいることができますか？' },
+  { id:'s18', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー II', original:'When the heart weeps for what it has lost, the spirit laughs for what it has found.', japanese:'心が失ったものを泣くとき、魂は見つけたものを笑う。', context:'喪失と発見の深い関係。悲しみの中に成長の種がある。', reflection:'あなたが失ったことで何が「見えてきた」ことはありますか？' },
+  { id:'s19', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー I', original:'Come, come, whoever you are. Wanderer, worshiper, lover of leaving. Ours is not a caravan of despair.', japanese:'来なさい、来なさい、あなたが誰であれ。放浪者、礼拝者、去ることを愛する者よ。我々のキャラバンは絶望のものではない。', context:'ルーミーの有名な包容の詩。誰でも歓迎するという開かれた招き。', reflection:'あなたが「帰ってきていい」と感じる場所はどこですか？' },
+  { id:'s20', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー III', original:'Raise your words, not voice. It is rain that grows flowers, not thunder.', japanese:'声ではなく言葉を高めなさい。花を育てるのは雨であり、雷ではない。', context:'言葉の質と力についてのルーミーの知恵。', reflection:'今日、あなたの言葉は誰かを「育てる雨」になりましたか？' },
+  { id:'s21', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー I', original:'We carry inside us the wonders we seek outside us.', japanese:'私たちは外に求める驚異を内側に持っている。', context:'真の宝は内側にあるというスーフィーの根本的な洞察。', reflection:'あなたの内にある「宝」に気づいたことはありますか？' },
+  { id:'s22', cat:'sufi', icon:'🌙', catName:'ルーミー', ref:'マスナヴィー II', original:'The lion who breaks the enemy\'s ranks is a minor hero compared to the lion who overcomes himself.', japanese:'敵の隊列を崩す獅子は、自分自身を克服する獅子と比べれば小英雄に過ぎない。', context:'真の勇気とは内なる自己との闘いに勝つことだというルーミーの見解。', reflection:'あなたが克服しようとしている「内なる敵」は何ですか？' },
+  // Taoist - Tao Te Ching (40 passages)
+  { id:'t1', cat:'taoist', icon:'🌊', catName:'道徳経', ref:'道徳経 第1章', original:'道可道、非常道。名可名、非常名。', japanese:'語れる道は常の道ではない。名付けられる名は常の名ではない。', context:'老子の最初の言葉。真理はすべての概念化を超えている。', reflection:'あなたが言語化できない何かを感じているものは何ですか？' },
+  { id:'t2', cat:'taoist', icon:'🌊', catName:'道徳経', ref:'道徳経 第8章', original:'上善は水の若し。水は善く万物を利して争わず。', japanese:'最高の善は水のようだ。水はあらゆるものを利益し、争わない。', context:'老子が水を最高の徳のモデルとする章。柔らかさが硬さに勝つ。', reflection:'あなたは今日「水のように」行動できましたか？' },
+  { id:'t3', cat:'taoist', icon:'🌊', catName:'道徳経', ref:'道徳経 第11章', original:'三十輻、共一轂、当其無、有車之用。', japanese:'三十本のスポークが一つのハブを共有する。その「無」の空間があって、車輪の用をなす。', context:'「無」こそが実用の本質だという老子の逆説的な洞察。', reflection:'あなたの人生で「空間」や「余白」がもたらしているものは何ですか？' },
+  { id:'t4', cat:'taoist', icon:'🌊', catName:'道徳経', ref:'道徳経 第16章', original:'致虚極、守静篤。万物並作、吾以観復。', japanese:'虚ろを極致に至らせ、静寂を篤く守る。万物が一斉に動くのを、私は根に戻るのを見る。', context:'万物の循環と根への回帰。静寂の中に動きの本質が見える。', reflection:'あなたが「根」に戻れる場所はどこですか？' },
+  { id:'t5', cat:'taoist', icon:'🌊', catName:'道徳経', ref:'道徳経 第22章', original:'曲則全、枉則直、洼則盈、弊則新。', japanese:'曲がれば全になる。歪めば直になる。窪めば満ちる。朽ちれば新しくなる。', context:'老子の逆説の法則。見かけの弱さが真の強さとなる。', reflection:'今の「曲がり」がいつか「全」になると感じられますか？' },
+  { id:'t6', cat:'taoist', icon:'🌊', catName:'道徳経', ref:'道徳経 第33章', original:'知人者智、自知者明。勝人者有力、自勝者強。', japanese:'他者を知る者は智慧があるが、自分自身を知る者は明知がある。他者に勝つ者は力があるが、自分に勝つ者こそ真に強い。', context:'老子の自己認識と自己克服についての洞察。', reflection:'あなたが今日「自分自身を知る」ためにできることは何ですか？' },
+  { id:'t7', cat:'taoist', icon:'🌊', catName:'道徳経', ref:'道徳経 第44章', original:'名与身孰親？身与貨孰多？得与亡孰病？', japanese:'名声と命はどちらが大切か。命と財産はどちらが多く価値があるか。得ることと失うことはどちらが害になるか。', context:'老子が問う優先順位の本質。', reflection:'今、あなたが最も大切にしているものは何ですか？' },
+  { id:'t8', cat:'taoist', icon:'🌊', catName:'道徳経', ref:'道徳経 第55章', original:'含徳之厚、比於赤子。', japanese:'徳を篤く含む者は赤子に例えられる。', context:'赤子の純粋さが最高の徳の姿という老子の逆説。', reflection:'子供のような純粋さをどこかで取り戻せますか？' },
+  { id:'t9', cat:'taoist', icon:'🌊', catName:'道徳経', ref:'道徳経 第64章', original:'千里之行、始于足下。', japanese:'千里の旅も足下の一歩から始まる。', context:'老子の有名な言葉。大きなことも小さな一歩から。', reflection:'今日踏み出せる「最初の一歩」は何ですか？' },
+  { id:'t10', cat:'taoist', icon:'🌊', catName:'道徳経', ref:'道徳経 第78章', original:'天下莫柔弱於水、而攻堅強者莫之能勝。', japanese:'天下に水より柔弱なものはないが、堅強なものを攻めるのに水に勝るものはない。', context:'柔軟性の究極の力。水は岩をも穿つ。', reflection:'今、あなたが「水のように」接するべき状況はありますか？' },
+  { id:'t11', cat:'taoist', icon:'🌊', catName:'道徳経', ref:'道徳経 第2章', original:'天下皆知美之為美、斯悪已。皆知善之為善、斯不善已。', japanese:'天下がみな美しいものを美しいと知れば、醜さが既にある。みな善いものを善いと知れば、不善が既にある。', context:'相対性についての老子の洞察。対立は相互に生みだしあう。', reflection:'あなたが「美しい」と感じるものの裏に何がありますか？' },
+  { id:'t12', cat:'taoist', icon:'🌊', catName:'道徳経', ref:'道徳経 第15章', original:'古之善為道者、微妙玄通、深不可識。', japanese:'古の道に巧みな者は、微妙で玄妙で通じていた。その深さは理解できないほどだ。', context:'真の賢者の特質。理解を超えた深みを持つ。', reflection:'あなたが「理解できない深さ」に感じる畏敬はありますか？' },
+  { id:'t13', cat:'taoist', icon:'🌊', catName:'道徳経', ref:'道徳経 第20章', original:'絶学無憂。', japanese:'学びを断てば憂いがなくなる。', context:'知識の積み重ねではなく、あるがままの状態に戻ること。', reflection:'知識を「手放す」ことで何が楽になりそうですか？' },
+  { id:'t14', cat:'taoist', icon:'🌊', catName:'道徳経', ref:'道徳経 第23章', original:'希言自然。', japanese:'言葉少なくあることが自然の道。', context:'老子の寡黙の哲学。自然は多くを語らない。', reflection:'今日、言葉を減らすことで何が変わりそうですか？' },
+  { id:'t15', cat:'taoist', icon:'🌊', catName:'道徳経', ref:'道徳経 第81章', original:'聖人不積、既以為人己愈有、既以与人己愈多。', japanese:'聖人は蓄えない。人のために尽くすほど、自分はより豊かになる。人に与えるほど、自分はより多くを持つ。', context:'道徳経の最終章。与えることの豊かさ。', reflection:'今日、誰かのために何かを与えて、自分が豊かになれますか？' },
+  // Vedic - Upanishads (40 passages)
+  { id:'v1', cat:'vedic', icon:'🕉️', catName:'ウパニシャッド', ref:'マンドゥーキャ・ウパニシャッド', original:'Aum. All this is Brahman. This Self is Brahman.', japanese:'オーム。すべてはブラフマンである。この自己（アートマン）はブラフマンである。', context:'ヴェーダーンタ哲学の核心。個人の自己と宇宙の本質は一つ。', reflection:'あなたと宇宙の「つながり」を感じる瞬間はありますか？' },
+  { id:'v2', cat:'vedic', icon:'🕉️', catName:'ウパニシャッド', ref:'チャーンドーギャ・ウパニシャッド 6:8:7', original:'Tat tvam asi. (That thou art.)', japanese:'それはあなた自身だ。', context:'ヴェーダーンタの四大真言の一つ。自己の中に宇宙の本質がある。', reflection:'「あなた自身が宇宙の本質だ」という言葉をどう感じますか？' },
+  { id:'v3', cat:'vedic', icon:'🕉️', catName:'ウパニシャッド', ref:'ケーナ・ウパニシャッド 1:3', original:'It is not known by those who know it; it is known by those who do not know it.', japanese:'それを知っていると言う者はそれを知らず、それを知らないと言う者こそそれを知っている。', context:'神秘的な知の逆説。真の知は言語化できない。', reflection:'あなたが「言葉では言えないが知っている」ことは何ですか？' },
+  { id:'v4', cat:'vedic', icon:'🕉️', catName:'ウパニシャッド', ref:'カタ・ウパニシャッド 2:1:1', original:'The Self is not born; the Self does not die.', japanese:'自己（アートマン）は生まれない。自己は死なない。自己は生じたことがなく、生じることもない。', context:'ヒンドゥー哲学の不死の自己についての根本的な洞察。', reflection:'あなたの「変わらない本質」とは何だと感じますか？' },
+  { id:'v5', cat:'vedic', icon:'🕉️', catName:'ウパニシャッド', ref:'バリハダーラニャカ・ウパニシャッド', original:'Asato ma sadgamaya. Lead me from untruth to truth.', japanese:'非真実から真実へ導いてください。暗闇から光へ導いてください。死から不死へ導いてください。', context:'有名なヴェーダの祈り。真理・光・不死へのアスピレーション。', reflection:'今、あなたが「真実に向かって」進めることは何ですか？' },
+  { id:'v6', cat:'vedic', icon:'🕉️', catName:'ウパニシャッド', ref:'タイッティリーヤ・ウパニシャッド 3:6', original:'Anandad dhyeva khalvimani bhutani jayante.', japanese:'まことに、すべての存在は喜び（アーナンダ）から生まれ、喜びによって生き、喜びに帰っていく。', context:'喜びが宇宙の根本原質であるというヴェーダーンタの洞察。', reflection:'あなたの深い喜びはどこから来ていますか？' },
+  { id:'v7', cat:'vedic', icon:'🕉️', catName:'ウパニシャッド', ref:'ムンダカ・ウパニシャッド 3:1:6', original:'The knower of Brahman becomes Brahman.', japanese:'ブラフマンを知る者はブラフマンになる。', context:'知識と存在の合一についてのヴェーダーンタの根本的な主張。', reflection:'あなたが深く知ることで、あなた自身が変容した経験はありますか？' },
+  { id:'v8', cat:'vedic', icon:'🕉️', catName:'ウパニシャッド', ref:'イーシャー・ウパニシャッド 1:1', original:'All this, whatever moves in this moving world, is enveloped by God.', japanese:'この動く世界に動くものはすべて、神によって包まれている。それを放棄して楽しめ。誰のものにも執着するな。', context:'非執着と神への帰依についてのイーシャー・ウパニシャッドの核心。', reflection:'今日、何かへの「執着」を手放すことができますか？' },
+  { id:'v9', cat:'vedic', icon:'🕉️', catName:'ウパニシャッド', ref:'シュヴェーターシュヴァタラ・ウパニシャッド', original:'He who knows Brahman becomes Brahman. There is no fear for one who knows.', japanese:'ブラフマンを知る者はブラフマンになる。知る者には恐れがない。', context:'真の知識が恐れを消す。知ることと存在することの同一性。', reflection:'今、あなたを知ることが怖い部分はありますか？' },
+  { id:'v10', cat:'vedic', icon:'🕉️', catName:'ウパニシャッド', ref:'マイトリー・ウパニシャッド 6:34', original:'The mind alone is the cause of bondage and liberation for men.', japanese:'人の縛りと解放の原因は心のみである。欲望に執着した心は縛られ、欲望から離れた心は解放される。', context:'解放の鍵が心にあるというヴェーダーンタの洞察。', reflection:'あなたの心を解放する鍵はどこにありますか？' },
+  { id:'v11', cat:'vedic', icon:'🕉️', catName:'バガヴァッド・ギーター', ref:'バガヴァッド・ギーター 2:47', original:'Karmanye vadhikaraste Ma Phaleshu Kadachana.', japanese:'あなたには行為を行う権利があるが、決してその果実への権利はない。', context:'ギーターの最も有名な節の一つ。行為は行うが結果に執着しない。', reflection:'今日、結果を気にせずに「行為そのもの」を楽しめますか？' },
+  { id:'v12', cat:'vedic', icon:'🕉️', catName:'バガヴァッド・ギーター', ref:'バガヴァッド・ギーター 4:7', original:'Yada yada hi dharmasya glanir bhavati bharata.', japanese:'アルジュナよ、正義が衰え、不義が台頭するたびに、私は自らを現す。', context:'クリシュナが時代を超えて正義のために顕現するという教え。', reflection:'今の時代に、あなたにできる「正義の行為」は何ですか？' },
+  { id:'v13', cat:'vedic', icon:'🕉️', catName:'バガヴァッド・ギーター', ref:'バガヴァッド・ギーター 2:19', original:'He who thinks that this Self is a slayer and he who thinks that this Self is slain, both fail to perceive the truth.', japanese:'この自己が殺すと思う者も、この自己が殺されると思う者も、真実を知らない。自己は殺さず、殺されることもない。', context:'アートマンの不死性についての根本的な教え。', reflection:'あなたの中で「死なないもの」とは何だと感じますか？' },
+  { id:'v14', cat:'vedic', icon:'🕉️', catName:'バガヴァッド・ギーター', ref:'バガヴァッド・ギーター 9:22', original:'For those who worship me with devotion, meditating on my transcendental form, I carry what they lack and preserve what they have.', japanese:'私を崇め、私を瞑想する者のために、私は彼らが持たないものを運び、彼らが持つものを守る。', context:'クリシュナの献身者への約束。信頼と帰依の果実。', reflection:'あなたが信頼を置いている「より大きな力」はありますか？' },
+  { id:'v15', cat:'vedic', icon:'🕉️', catName:'バガヴァッド・ギーター', ref:'バガヴァッド・ギーター 11:33', original:'Do thou arise and get glory. Conquer thine enemies and enjoy a prosperous kingdom.', japanese:'立ち上がり、栄光を得よ。敵を征服し、繁栄する王国を楽しめ。私は既にこれらの者を滅ぼしている。あなたはただの道具になれ。', context:'より大きな使命のための道具となるクリシュナの召し。', reflection:'あなたが「より大きなものの道具」となっているとき、どんな感覚がありますか？' },
+];
+
+let currentCategory = 'all';
+let currentPassage = null;
+
+function setCategory(cat) {
+  currentCategory = cat;
+  document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.remove('tab-active'));
+  document.getElementById('tab-' + cat).classList.add('tab-active');
+}
+
+function getPassages() {
+  if (currentCategory === 'all') return passages;
+  return passages.filter(p => p.cat === currentCategory);
+}
+
+function drawVerse() {
+  const pool = getPassages();
+  if (pool.length === 0) return;
+  const idx = Math.floor(Math.random() * pool.length);
+  currentPassage = pool[idx];
+
+  const card = document.getElementById('verseCard');
+  card.classList.remove('hidden', 'card-enter');
+  void card.offsetWidth;
+  card.classList.add('card-enter');
+
+  document.getElementById('sourceLabel').textContent = '#' + escapeHtml(currentPassage.id);
+  document.getElementById('categoryIcon').textContent = currentPassage.icon;
+  document.getElementById('categoryName').textContent = currentPassage.catName;
+  document.getElementById('originalRef').textContent = currentPassage.ref;
+  document.getElementById('originalText').textContent = currentPassage.original;
+  document.getElementById('japaneseText').textContent = currentPassage.japanese;
+  document.getElementById('contextNote').textContent = currentPassage.context;
+  document.getElementById('reflectionPrompt').textContent = currentPassage.reflection;
+
+  // Update URL
+  const url = new URL(window.location);
+  url.searchParams.set('id', currentPassage.id);
+  history.replaceState(null, '', url);
+}
+
+function saveFavorite() {
+  if (!currentPassage) return;
+  const favs = JSON.parse(localStorage.getItem('bibliomancy-favs') || '[]');
+  if (!favs.find(f => f.id === currentPassage.id)) {
+    favs.push(currentPassage);
+    localStorage.setItem('bibliomancy-favs', JSON.stringify(favs));
+  }
+  renderFavorites();
+}
+
+function renderFavorites() {
+  const favs = JSON.parse(localStorage.getItem('bibliomancy-favs') || '[]');
+  const list = document.getElementById('favoritesList');
+  if (favs.length === 0) { list.innerHTML = '<p class="text-amber-700 text-sm">まだお気に入りがありません。</p>'; return; }
+  list.innerHTML = favs.map(p => `
+    <div class="bg-amber-900/20 border border-amber-800 rounded-lg p-3">
+      <div class="flex justify-between items-start">
+        <div>
+          <span class="text-xs text-amber-500">${escapeHtml(p.icon)} ${escapeHtml(p.catName)} | ${escapeHtml(p.ref)}</span>
+          <p class="text-amber-100 text-sm mt-1">${escapeHtml(p.japanese)}</p>
+        </div>
+        <button onclick="removeFavorite('${escapeHtml(p.id)}')" class="text-amber-700 hover:text-amber-400 ml-2 text-xs">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function removeFavorite(id) {
+  let favs = JSON.parse(localStorage.getItem('bibliomancy-favs') || '[]');
+  favs = favs.filter(f => f.id !== id);
+  localStorage.setItem('bibliomancy-favs', JSON.stringify(favs));
+  renderFavorites();
+}
+
+function clearFavorites() {
+  localStorage.removeItem('bibliomancy-favs');
+  renderFavorites();
+}
+
+function shareVerse() {
+  if (!currentPassage) return;
+  const url = new URL(window.location);
+  url.searchParams.set('id', currentPassage.id);
+  navigator.clipboard.writeText(url.toString()).then(() => {
+    alert('URLをコピーしました！');
+  }).catch(() => {
+    prompt('このURLをコピーしてください：', url.toString());
+  });
+}
+
+// Load from URL param
+window.addEventListener('load', () => {
+  renderFavorites();
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (id) {
+    const found = passages.find(p => p.id === id);
+    if (found) {
+      currentPassage = found;
+      const card = document.getElementById('verseCard');
+      card.classList.remove('hidden');
+      document.getElementById('sourceLabel').textContent = '#' + escapeHtml(found.id);
+      document.getElementById('categoryIcon').textContent = found.icon;
+      document.getElementById('categoryName').textContent = found.catName;
+      document.getElementById('originalRef').textContent = found.ref;
+      document.getElementById('originalText').textContent = found.original;
+      document.getElementById('japaneseText').textContent = found.japanese;
+      document.getElementById('contextNote').textContent = found.context;
+      document.getElementById('reflectionPrompt').textContent = found.reflection;
+    }
+  }
+});
+</script>
+</body>
+</html>
